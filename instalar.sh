@@ -6,7 +6,8 @@
 # (não instala programas, não pede código nem chaves, não cria atalho e não abre o painel).
 set -euo pipefail
 
-ORIGEM="${HISTORINHAS_ORIGEM:-https://github.com/obrunowendel/historinhas.git}"
+ORIGEM="${HISTORINHAS_ORIGEM:-https://x-access-token@github.com/obrunowendel/historinhas.git}"
+export GIT_TERMINAL_PROMPT=0
 SEM_PERGUNTAS="${HISTORINHAS_SEM_PERGUNTAS:-}"
 BASE="$HOME/Historinhas"
 SIS="$BASE/sistema"
@@ -49,20 +50,30 @@ tem git || falta "git" "instale o Git e rode o instalador de novo"
 tem ffmpeg || falta "ffmpeg" "instale o ffmpeg (brew install ffmpeg) e rode o instalador de novo"
 PY="$(python_bom)" || falta "Python 3.12" "instale o Python 3.12 ou mais novo (brew install python@3.12)"
 
-if [ -z "$SEM_PERGUNTAS" ] && [[ "$ORIGEM" == https://github.com/* ]] && [ ! -d "$SIS/.git" ]; then
+pedir_codigo() {
   passo "Acesso ao sistema"
-  TOKEN="$(perguntar_oculto "Cole o código de acesso que o Bruno mandou e aperte Enter: ")"
-  [ -n "$TOKEN" ] || falta "código de acesso" "peça o código ao Bruno e rode o instalador de novo"
-  printf 'protocol=https\nhost=github.com\nusername=x-access-token\npassword=%s\n\n' "$TOKEN" \
+  local token
+  token="$(perguntar_oculto "Cole o código de acesso que o Bruno mandou e aperte Enter: ")"
+  [ -n "$token" ] || falta "código de acesso" "peça o código ao Bruno e rode o instalador de novo"
+  printf 'protocol=https\nhost=github.com\nusername=x-access-token\n\n' | git -c credential.helper=osxkeychain credential reject || true
+  printf 'protocol=https\nhost=github.com\nusername=x-access-token\npassword=%s\n\n' "$token" \
     | git -c credential.helper=osxkeychain credential approve
-  unset TOKEN
+}
+DO_GITHUB=""
+[[ "$ORIGEM" == https://*github.com/* ]] && DO_GITHUB=1
+if [ -z "$SEM_PERGUNTAS" ] && [ -n "$DO_GITHUB" ] && [ ! -d "$SIS/.git" ]; then
+  pedir_codigo
 fi
 
 passo "Sistema"
 mkdir -p "$BASE"
 if [ -d "$SIS/.git" ]; then
-  git -C "$SIS" fetch --quiet origin && git -C "$SIS" reset --hard --quiet '@{u}' && git -C "$SIS" clean -fdq \
-    || falta "atualização" "não consegui baixar a versão nova: confira a internet e o código de acesso"
+  if ! git -C "$SIS" fetch --quiet origin 2>/dev/null; then
+    # código vencido ou revogado: pede o novo e tenta de novo
+    [ -z "$SEM_PERGUNTAS" ] && [ -n "$DO_GITHUB" ] && pedir_codigo
+    git -C "$SIS" fetch --quiet origin || falta "atualização" "não consegui baixar a versão nova: confira a internet e o código de acesso"
+  fi
+  git -C "$SIS" reset --hard --quiet '@{u}' && git -C "$SIS" clean -fdq
 else
   git -c credential.helper=osxkeychain clone --quiet "$ORIGEM" "$SIS" \
     || falta "download do sistema" "o código de acesso foi recusado ou não há internet: confira e rode de novo"

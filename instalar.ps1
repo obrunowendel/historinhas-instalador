@@ -6,7 +6,9 @@
 $ErrorActionPreference = "Continue"  # com "Stop", o PowerShell 5.1 trata saída de erro de programa externo como falha
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$Origem = if ($env:HISTORINHAS_ORIGEM) { $env:HISTORINHAS_ORIGEM } else { "https://github.com/obrunowendel/historinhas.git" }
+$Origem = if ($env:HISTORINHAS_ORIGEM) { $env:HISTORINHAS_ORIGEM } else { "https://x-access-token@github.com/obrunowendel/historinhas.git" }
+$env:GIT_TERMINAL_PROMPT = "0"
+$env:GCM_INTERACTIVE = "never"
 $SemPerguntas = [bool]$env:HISTORINHAS_SEM_PERGUNTAS
 $Base = Join-Path $HOME "Historinhas"
 $Sis = Join-Path $Base "sistema"
@@ -42,6 +44,14 @@ function Python-Bom {
   return $null
 }
 
+function Pedir-Codigo {
+  Passo "Acesso ao sistema"
+  $token = Ler-Oculto "Cole o código de acesso que o Bruno mandou e aperte Enter"
+  if (-not $token) { Falta "código de acesso" "peça o código ao Bruno e rode o instalador de novo" }
+  "protocol=https`nhost=github.com`nusername=x-access-token`n" | git credential reject 2>$null
+  "protocol=https`nhost=github.com`nusername=x-access-token`npassword=$token`n" | git credential approve
+}
+
 function Instalar {
 Passo "Programas necessários"
 if (-not $SemPerguntas) {
@@ -59,18 +69,17 @@ if (-not (Tem "ffmpeg")) { Falta "ffmpeg" "instale o ffmpeg (winget install Gyan
 $Py = Python-Bom
 if (-not $Py) { Falta "Python 3.12" "instale o Python 3.12 (winget install Python.Python.3.12) e rode de novo" }
 
-if (-not $SemPerguntas -and $Origem.StartsWith("https://github.com/") -and -not (Test-Path (Join-Path $Sis ".git"))) {
-  Passo "Acesso ao sistema"
-  $token = Ler-Oculto "Cole o código de acesso que o Bruno mandou e aperte Enter"
-  if (-not $token) { Falta "código de acesso" "peça o código ao Bruno e rode o instalador de novo" }
-  "protocol=https`nhost=github.com`nusername=x-access-token`npassword=$token`n" | git credential approve
-  Remove-Variable token
-}
+$DoGithub = $Origem -match "^https://([^/@]+@)?github\.com/"
+if (-not $SemPerguntas -and $DoGithub -and -not (Test-Path (Join-Path $Sis ".git"))) { Pedir-Codigo }
 
 Passo "Sistema"
 New-Item -ItemType Directory -Force -Path $Base | Out-Null
 if (Test-Path (Join-Path $Sis ".git")) {
-  git -C $Sis fetch --quiet origin
+  git -C $Sis fetch --quiet origin 2>$null
+  if ($LASTEXITCODE -ne 0 -and -not $SemPerguntas -and $DoGithub) {
+    Pedir-Codigo  # código vencido ou revogado: pede o novo e tenta de novo
+    git -C $Sis fetch --quiet origin
+  }
   if ($LASTEXITCODE -ne 0) { Falta "atualização" "não consegui baixar a versão nova: confira a internet e o código de acesso" }
   git -C $Sis reset --hard --quiet "@{u}"
   git -C $Sis clean -fdq
