@@ -27,8 +27,10 @@ function Ler-Oculto($pergunta) {
   $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($seguro)
   try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
 }
-function Winget($id) {
-  winget install --id $id -e --silent --accept-package-agreements --accept-source-agreements | Out-Null
+# O nome não pode ser "Winget": o PowerShell não diferencia maiúscula, e a função chamaria a si mesma no lugar do winget.exe.
+function Instalar-Programa($id, $nome) {
+  Write-Host "    instalando $nome (pode levar alguns minutos; se o Windows pedir permissão, clique em Sim)"
+  winget.exe install --id $id -e --silent --accept-package-agreements --accept-source-agreements | Out-Null
 }
 function Python-Bom {
   $codigo = "import sys; print(sys.executable if sys.version_info >= (3, 12) else '')"
@@ -56,13 +58,13 @@ function Pedir-Codigo {
 function Instalar {
 Passo "Programas necessários"
 if (-not $SemPerguntas) {
-  if (-not (Tem "winget")) { Falta "winget" "atualize o Windows (Instalador de Aplicativo na Microsoft Store) e rode de novo" }
-  if (-not (Tem "git")) { Winget "Git.Git" }
+  if (-not (Tem "winget.exe")) { Falta "winget" "atualize o Windows (Instalador de Aplicativo na Microsoft Store) e rode de novo" }
+  if (-not (Tem "git")) { Instalar-Programa "Git.Git" "Git" }
   Recarregar-Path
-  if (-not (Python-Bom)) { Winget "Python.Python.3.12" }
-  if (-not (Tem "ffmpeg")) { Winget "Gyan.FFmpeg" }
-  $claude = winget list --id Anthropic.Claude -e 2>$null | Select-String "Anthropic.Claude"
-  if (-not $claude) { try { Winget "Anthropic.Claude" } catch { Write-Host "Instale o Claude Desktop em claude.ai/download" } }
+  if (-not (Python-Bom)) { Instalar-Programa "Python.Python.3.12" "Python 3.12" }
+  if (-not (Tem "ffmpeg")) { Instalar-Programa "Gyan.FFmpeg" "ffmpeg" }
+  $claude = winget.exe list --id Anthropic.Claude -e --accept-source-agreements 2>$null | Select-String "Anthropic.Claude"
+  if (-not $claude) { try { Instalar-Programa "Anthropic.Claude" "Claude Desktop" } catch { Write-Host "Instale o Claude Desktop em claude.ai/download" } }
   Recarregar-Path
 }
 if (-not (Tem "git")) { Falta "git" "instale o Git for Windows e rode o instalador de novo" }
