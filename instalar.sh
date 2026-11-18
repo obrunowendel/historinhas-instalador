@@ -11,7 +11,7 @@ export GIT_TERMINAL_PROMPT=0
 SEM_PERGUNTAS="${HISTORINHAS_SEM_PERGUNTAS:-}"
 BASE="$HOME/Historinhas"
 SIS="$BASE/sistema"
-CHAVES="FAL_KEY HIGGSFIELD_API_KEY ANTHROPIC_API_KEY ELEVENLABS_API_KEY"
+CHAVES="FAL_KEY HIGGSFIELD_API_KEY"  # imagem e vídeo; o resto roda pelo Claude Code
 
 passo() { printf '\n==> %s\n' "$1"; }
 falta() { printf 'FALTA: %s — %s\n' "$1" "$2" >&2; exit 3; }
