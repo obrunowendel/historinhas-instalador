@@ -10,6 +10,7 @@ $Origem = if ($env:HISTORINHAS_ORIGEM) { $env:HISTORINHAS_ORIGEM } else { "https
 $env:GIT_TERMINAL_PROMPT = "0"
 $env:GCM_INTERACTIVE = "never"
 $SemPerguntas = [bool]$env:HISTORINHAS_SEM_PERGUNTAS
+$env:PYTHONUTF8 = "1"  # sem isso o Python escreve acento na página de código do Windows e o console mostra errado
 $Base = Join-Path $HOME "Historinhas"
 $Sis = Join-Path $Base "sistema"
 $Chaves = @("FAL_KEY", "HIGGSFIELD_API_KEY", "ANTHROPIC_API_KEY", "ELEVENLABS_API_KEY")
@@ -137,6 +138,7 @@ if (-not $SemPerguntas) {
 
 Passo "Conferência"
 & $Cli verificar
+$global:LASTEXITCODE = 0  # o que o verificar reprova já está na tela (chave que falta se cola depois); não é falha da instalação
 
 if (-not $SemPerguntas) { & $Cli painel }
 
